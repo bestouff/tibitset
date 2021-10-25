@@ -1,22 +1,22 @@
 #![feature(test)]
 
 extern crate test;
-extern crate fixedbitset;
-use test::Bencher;
-use fixedbitset::{FixedBitSet};
+extern crate tibitset;
 use std::mem::size_of;
+use test::Bencher;
+use tibitset::TiBitSet;
 
 #[inline]
-fn iter_ones_using_contains<F: FnMut(usize)>(fb: &FixedBitSet, f: &mut F) {
-    for bit in 0 .. fb.len() {
-       if fb.contains(bit) {
-           f(bit);
-       }
+fn iter_ones_using_contains<F: FnMut(usize)>(fb: &TiBitSet, f: &mut F) {
+    for bit in 0..fb.len() {
+        if fb.contains(bit) {
+            f(bit);
+        }
     }
 }
 
 #[inline]
-fn iter_ones_using_slice_directly<F: FnMut(usize)>(fb: &FixedBitSet, f: &mut F) {
+fn iter_ones_using_slice_directly<F: FnMut(usize)>(fb: &TiBitSet, f: &mut F) {
     for (block_idx, &block) in fb.as_slice().iter().enumerate() {
         let mut bit_pos = block_idx * size_of::<u32>() * 8;
         let mut block: u32 = block;
@@ -34,7 +34,7 @@ fn iter_ones_using_slice_directly<F: FnMut(usize)>(fb: &FixedBitSet, f: &mut F) 
 #[bench]
 fn bench_iter_ones_using_contains_all_zeros(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let fb = FixedBitSet::with_capacity(N);
+    let fb = TiBitSet::with_capacity(N);
 
     b.iter(|| {
         let mut count = 0;
@@ -46,7 +46,7 @@ fn bench_iter_ones_using_contains_all_zeros(b: &mut Bencher) {
 #[bench]
 fn bench_iter_ones_using_contains_all_ones(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let mut fb = FixedBitSet::with_capacity(N);
+    let mut fb = TiBitSet::with_capacity(N);
     fb.insert_range(..);
 
     b.iter(|| {
@@ -59,32 +59,32 @@ fn bench_iter_ones_using_contains_all_ones(b: &mut Bencher) {
 #[bench]
 fn bench_iter_ones_using_slice_directly_all_zero(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let fb = FixedBitSet::with_capacity(N);
+    let fb = TiBitSet::with_capacity(N);
 
     b.iter(|| {
-       let mut count = 0;
-       iter_ones_using_slice_directly(&fb, &mut |_bit| count += 1);
-       count
+        let mut count = 0;
+        iter_ones_using_slice_directly(&fb, &mut |_bit| count += 1);
+        count
     });
 }
 
 #[bench]
 fn bench_iter_ones_using_slice_directly_all_ones(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let mut fb = FixedBitSet::with_capacity(N);
+    let mut fb = TiBitSet::with_capacity(N);
     fb.insert_range(..);
 
     b.iter(|| {
-       let mut count = 0;
-       iter_ones_using_slice_directly(&fb, &mut |_bit| count += 1);
-       count
+        let mut count = 0;
+        iter_ones_using_slice_directly(&fb, &mut |_bit| count += 1);
+        count
     });
 }
 
 #[bench]
 fn bench_iter_ones_all_zeros(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let fb = FixedBitSet::with_capacity(N);
+    let fb = TiBitSet::with_capacity(N);
 
     b.iter(|| {
         let mut count = 0;
@@ -98,7 +98,7 @@ fn bench_iter_ones_all_zeros(b: &mut Bencher) {
 #[bench]
 fn bench_iter_ones_all_ones(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let mut fb = FixedBitSet::with_capacity(N);
+    let mut fb = TiBitSet::with_capacity(N);
     fb.insert_range(..);
 
     b.iter(|| {
@@ -113,17 +113,15 @@ fn bench_iter_ones_all_ones(b: &mut Bencher) {
 #[bench]
 fn bench_insert_range(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let mut fb = FixedBitSet::with_capacity(N);
+    let mut fb = TiBitSet::with_capacity(N);
 
-    b.iter(|| {
-        fb.insert_range(..)
-    });
+    b.iter(|| fb.insert_range(..));
 }
 
 #[bench]
 fn bench_insert_range_using_loop(b: &mut Bencher) {
     const N: usize = 1_000_000;
-    let mut fb = FixedBitSet::with_capacity(N);
+    let mut fb = TiBitSet::with_capacity(N);
 
     b.iter(|| {
         for i in 0..N {

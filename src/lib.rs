@@ -1,17 +1,14 @@
-//! `FixedBitSet` is a simple fixed size set of bits.
+//! `TiBitSet<K> where K: From<usize> + Into<usize>` is a simple fixed size set of bits.
 //!
 //!
 //! ### Crate features
 //!
 //! - `std` (default feature)  
 //!   Disabling this feature disables using std and instead uses crate alloc.
-//!   Requires Rust 1.36 to disable.
+//! - `serde`
+//!   Enabling this feature makes a `TiBitSet` (de)serializable via `serde`.
 //!
-//! ### Rust Version
-//!
-//! This version of fixedbitset requires Rust 1.39 or later.
-//!
-#![doc(html_root_url = "https://docs.rs/fixedbitset/0.4.0/")]
+#![doc(html_root_url = "https://docs.rs/tibitset/")]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -46,46 +43,46 @@ fn div_rem(x: usize, d: usize) -> (usize, usize) {
     (x / d, x % d)
 }
 
-/// `FixedBitSet` is a simple fixed size set of bits that each can
+/// `TiBitSet` is a simple fixed size set of bits that each can
 /// be enabled (1 / **true**) or disabled (0 / **false**).
 ///
 /// The bit set has a fixed capacity in terms of enabling bits (and the
 /// capacity can grow using the `grow` method).
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct FixedBitSet<K = usize> {
+pub struct TiBitSet<K = usize> {
     data: Vec<Block>,
     /// length in bits
     length: usize,
     kind: PhantomData<K>,
 }
 
-impl<K> FixedBitSet<K>
+impl<K> TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
-    /// Create a new empty **FixedBitSet**.
+    /// Create a new empty **TiBitSet**.
     pub fn new() -> Self {
-        FixedBitSet {
+        TiBitSet {
             data: Vec::new(),
             length: 0,
             kind: PhantomData,
         }
     }
 
-    /// Create a new **FixedBitSet** with a specific number of bits,
+    /// Create a new **TiBitSet** with a specific number of bits,
     /// all initially clear.
     pub fn with_capacity(bits: usize) -> Self {
         let (mut blocks, rem) = div_rem(bits, BITS);
         blocks += (rem > 0) as usize;
-        FixedBitSet {
+        TiBitSet {
             data: vec![0; blocks],
             length: bits,
             kind: PhantomData,
         }
     }
 
-    /// Create a new **FixedBitSet** with a specific number of bits,
+    /// Create a new **TiBitSet** with a specific number of bits,
     /// initialized from provided blocks.
     ///
     /// If the blocks are not the exact size needed for the capacity
@@ -95,7 +92,7 @@ where
     /// For example:
     /// ```
     /// let data = vec![4];
-    /// let bs = fixedbitset::FixedBitSet::<usize>::with_capacity_and_blocks(4, data);
+    /// let bs = tibitset::TiBitSet::<usize>::with_capacity_and_blocks(4, data);
     /// assert_eq!(format!("{:b}", bs), "0010");
     /// ```
     pub fn with_capacity_and_blocks<I: IntoIterator<Item = Block>>(bits: usize, blocks: I) -> Self {
@@ -113,7 +110,7 @@ where
                 *data.get_unchecked_mut(block) &= !mask;
             }
         }
-        FixedBitSet {
+        TiBitSet {
             data,
             length: bits.into(),
             kind: PhantomData,
@@ -130,19 +127,19 @@ where
         }
     }
 
-    /// Return the length of the [`FixedBitSet`] in bits.
+    /// Return the length of the [`TiBitSet`] in bits.
     #[inline]
     pub fn len(&self) -> K {
         self.length.into()
     }
 
-    /// Return if the [`FixedBitSet`] is empty.
+    /// Return if the [`TiBitSet`] is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
-    /// Return **true** if the bit is enabled in the **FixedBitSet**,
+    /// Return **true** if the bit is enabled in the **TiBitSet**,
     /// **false** otherwise.
     ///
     /// Note: bits outside the capacity are always disabled.
@@ -358,45 +355,45 @@ where
         }
     }
 
-    /// Returns a lazy iterator over the intersection of two `FixedBitSet`s
-    pub fn intersection<'a>(&'a self, other: &'a FixedBitSet<K>) -> Intersection<'a, K> {
+    /// Returns a lazy iterator over the intersection of two `TiBitSet`s
+    pub fn intersection<'a>(&'a self, other: &'a TiBitSet<K>) -> Intersection<'a, K> {
         Intersection {
             iter: self.ones(),
             other,
         }
     }
 
-    /// Returns a lazy iterator over the union of two `FixedBitSet`s.
-    pub fn union<'a>(&'a self, other: &'a FixedBitSet<K>) -> Union<'a, K> {
+    /// Returns a lazy iterator over the union of two `TiBitSet`s.
+    pub fn union<'a>(&'a self, other: &'a TiBitSet<K>) -> Union<'a, K> {
         Union {
             iter: self.ones().chain(other.difference(self)),
         }
     }
 
-    /// Returns a lazy iterator over the difference of two `FixedBitSet`s. The difference of `a`
+    /// Returns a lazy iterator over the difference of two `TiBitSet`s. The difference of `a`
     /// and `b` is the elements of `a` which are not in `b`.
-    pub fn difference<'a>(&'a self, other: &'a FixedBitSet<K>) -> Difference<'a, K> {
+    pub fn difference<'a>(&'a self, other: &'a TiBitSet<K>) -> Difference<'a, K> {
         Difference {
             iter: self.ones(),
             other,
         }
     }
 
-    /// Returns a lazy iterator over the symmetric difference of two `FixedBitSet`s.
+    /// Returns a lazy iterator over the symmetric difference of two `TiBitSet`s.
     /// The symmetric difference of `a` and `b` is the elements of one, but not both, sets.
     pub fn symmetric_difference<'a>(
         &'a self,
-        other: &'a FixedBitSet<K>,
+        other: &'a TiBitSet<K>,
     ) -> SymmetricDifference<'a, K> {
         SymmetricDifference {
             iter: self.difference(other).chain(other.difference(self)),
         }
     }
 
-    /// In-place union of two `FixedBitSet`s.
+    /// In-place union of two `TiBitSet`s.
     ///
     /// On calling this method, `self`'s capacity may be increased to match `other`'s.
-    pub fn union_with(&mut self, other: &FixedBitSet<K>) {
+    pub fn union_with(&mut self, other: &TiBitSet<K>) {
         if other.length >= self.length {
             self.grow(other.length);
         }
@@ -405,10 +402,10 @@ where
         }
     }
 
-    /// In-place intersection of two `FixedBitSet`s.
+    /// In-place intersection of two `TiBitSet`s.
     ///
     /// On calling this method, `self`'s capacity will remain the same as before.
-    pub fn intersect_with(&mut self, other: &FixedBitSet<K>) {
+    pub fn intersect_with(&mut self, other: &TiBitSet<K>) {
         for (x, y) in self.data.iter_mut().zip(other.data.iter()) {
             *x &= *y;
         }
@@ -418,10 +415,10 @@ where
         }
     }
 
-    /// In-place difference of two `FixedBitSet`s.
+    /// In-place difference of two `TiBitSet`s.
     ///
     /// On calling this method, `self`'s capacity will remain the same as before.
-    pub fn difference_with(&mut self, other: &FixedBitSet<K>) {
+    pub fn difference_with(&mut self, other: &TiBitSet<K>) {
         for (x, y) in self.data.iter_mut().zip(other.data.iter()) {
             *x &= !*y;
         }
@@ -434,10 +431,10 @@ where
         //   has them set to 0 anyway.
     }
 
-    /// In-place symmetric difference of two `FixedBitSet`s.
+    /// In-place symmetric difference of two `TiBitSet`s.
     ///
     /// On calling this method, `self`'s capacity may be increased to match `other`'s.
-    pub fn symmetric_difference_with(&mut self, other: &FixedBitSet<K>) {
+    pub fn symmetric_difference_with(&mut self, other: &TiBitSet<K>) {
         if other.length >= self.length {
             self.grow(other.length);
         }
@@ -448,7 +445,7 @@ where
 
     /// Returns `true` if `self` has no elements in common with `other`. This
     /// is equivalent to checking for an empty intersection.
-    pub fn is_disjoint(&self, other: &FixedBitSet<K>) -> bool {
+    pub fn is_disjoint(&self, other: &TiBitSet<K>) -> bool {
         self.data
             .iter()
             .zip(other.data.iter())
@@ -457,7 +454,7 @@ where
 
     /// Returns `true` if the set is a subset of another, i.e. `other` contains
     /// at least all the values in `self`.
-    pub fn is_subset(&self, other: &FixedBitSet<K>) -> bool {
+    pub fn is_subset(&self, other: &TiBitSet<K>) -> bool {
         self.data
             .iter()
             .zip(other.data.iter())
@@ -467,11 +464,11 @@ where
 
     /// Returns `true` if the set is a superset of another, i.e. `self` contains
     /// at least all the values in `other`.
-    pub fn is_superset(&self, other: &FixedBitSet<K>) -> bool {
+    pub fn is_superset(&self, other: &TiBitSet<K>) -> bool {
         other.is_subset(self)
     }
 }
-impl<K> Binary for FixedBitSet<K>
+impl<K> Binary for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -492,7 +489,7 @@ where
     }
 }
 
-impl<K> Display for FixedBitSet<K>
+impl<K> Display for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -503,10 +500,10 @@ where
 
 /// An iterator producing elements in the difference of two sets.
 ///
-/// This struct is created by the [`FixedBitSet::difference`] method.
+/// This struct is created by the [`TiBitSet::difference`] method.
 pub struct Difference<'a, K> {
     iter: Ones<'a, K>,
-    other: &'a FixedBitSet<K>,
+    other: &'a TiBitSet<K>,
 }
 
 impl<'a, K> Iterator for Difference<'a, K>
@@ -529,7 +526,7 @@ where
 
 /// An iterator producing elements in the symmetric difference of two sets.
 ///
-/// This struct is created by the [`FixedBitSet::symmetric_difference`] method.
+/// This struct is created by the [`TiBitSet::symmetric_difference`] method.
 pub struct SymmetricDifference<'a, K> {
     iter: Chain<Difference<'a, K>, Difference<'a, K>>,
 }
@@ -548,10 +545,10 @@ where
 
 /// An iterator producing elements in the intersection of two sets.
 ///
-/// This struct is created by the [`FixedBitSet::intersection`] method.
+/// This struct is created by the [`TiBitSet::intersection`] method.
 pub struct Intersection<'a, K> {
     iter: Ones<'a, K>,
-    other: &'a FixedBitSet<K>,
+    other: &'a TiBitSet<K>,
 }
 
 impl<'a, K> Iterator for Intersection<'a, K>
@@ -574,7 +571,7 @@ where
 
 /// An iterator producing elements in the union of two sets.
 ///
-/// This struct is created by the [`FixedBitSet::union`] method.
+/// This struct is created by the [`TiBitSet::union`] method.
 pub struct Union<'a, K> {
     iter: Chain<Ones<'a, K>, Difference<'a, K>>,
 }
@@ -605,7 +602,7 @@ impl Masks {
         let end = range.end().unwrap_or(length);
         assert!(
             start <= end && end <= length,
-            "invalid range {}..{} for a fixedbitset of size {}",
+            "invalid range {}..{} for a tibitset of size {}",
             start,
             end,
             length
@@ -652,7 +649,7 @@ impl Iterator for Masks {
 
 /// An  iterator producing the indices of the set bit in a set.
 ///
-/// This struct is created by the [`FixedBitSet::ones`] method.
+/// This struct is created by the [`TiBitSet::ones`] method.
 pub struct Ones<'a, K> {
     bitset: Block,
     block_idx: usize,
@@ -683,10 +680,10 @@ where
     }
 }
 
-impl<K> Clone for FixedBitSet<K> {
+impl<K> Clone for TiBitSet<K> {
     #[inline]
     fn clone(&self) -> Self {
-        FixedBitSet {
+        TiBitSet {
             data: self.data.clone(),
             length: self.length,
             kind: self.kind,
@@ -698,8 +695,8 @@ impl<K> Clone for FixedBitSet<K> {
 /// or **false** otherwise.
 ///
 /// Note: bits outside the capacity are always disabled, and thus
-/// indexing a FixedBitSet will not panic.
-impl<K> Index<K> for FixedBitSet<K>
+/// indexing a TiBitSet will not panic.
+impl<K> Index<K> for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -716,7 +713,7 @@ where
 }
 
 /// Sets the bit at index **i** to **true** for each item **i** in the input **src**.
-impl<K> Extend<K> for FixedBitSet<K>
+impl<K> Extend<K> for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -732,25 +729,25 @@ where
     }
 }
 
-/// Return a FixedBitSet containing bits set to **true** for every bit index in
+/// Return a TiBitSet containing bits set to **true** for every bit index in
 /// the iterator, other bits are set to **false**.
-impl<K> FromIterator<K> for FixedBitSet<K>
+impl<K> FromIterator<K> for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
     fn from_iter<I: IntoIterator<Item = K>>(src: I) -> Self {
-        let mut fbs = FixedBitSet::<K>::new();
+        let mut fbs = TiBitSet::<K>::new();
         fbs.extend(src);
         fbs
     }
 }
 
-impl<'a, K> BitAnd for &'a FixedBitSet<K>
+impl<'a, K> BitAnd for &'a TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
-    type Output = FixedBitSet<K>;
-    fn bitand(self, other: &FixedBitSet<K>) -> FixedBitSet<K> {
+    type Output = TiBitSet<K>;
+    fn bitand(self, other: &TiBitSet<K>) -> TiBitSet<K> {
         let (short, long) = {
             if self.length <= other.length {
                 (&self.data, &other.data)
@@ -763,7 +760,7 @@ where
             *data &= *block;
         }
         let len = std::cmp::min(self.length, other.length);
-        FixedBitSet {
+        TiBitSet {
             data,
             length: len,
             kind: PhantomData,
@@ -771,7 +768,7 @@ where
     }
 }
 
-impl<'a, K> BitAndAssign for FixedBitSet<K>
+impl<'a, K> BitAndAssign for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -780,7 +777,7 @@ where
     }
 }
 
-impl<'a, K> BitAndAssign<&Self> for FixedBitSet<K>
+impl<'a, K> BitAndAssign<&Self> for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -789,12 +786,12 @@ where
     }
 }
 
-impl<'a, K> BitOr for &'a FixedBitSet<K>
+impl<'a, K> BitOr for &'a TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
-    type Output = FixedBitSet<K>;
-    fn bitor(self, other: &FixedBitSet<K>) -> FixedBitSet<K> {
+    type Output = TiBitSet<K>;
+    fn bitor(self, other: &TiBitSet<K>) -> TiBitSet<K> {
         let (short, long) = {
             if self.length <= other.length {
                 (&self.data, &other.data)
@@ -807,7 +804,7 @@ where
             *data |= *block;
         }
         let len = std::cmp::max(self.length, other.length);
-        FixedBitSet {
+        TiBitSet {
             data,
             length: len,
             kind: PhantomData,
@@ -815,7 +812,7 @@ where
     }
 }
 
-impl<'a, K> BitOrAssign for FixedBitSet<K>
+impl<'a, K> BitOrAssign for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -824,7 +821,7 @@ where
     }
 }
 
-impl<'a, K> BitOrAssign<&Self> for FixedBitSet<K>
+impl<'a, K> BitOrAssign<&Self> for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -833,12 +830,12 @@ where
     }
 }
 
-impl<'a, K> BitXor for &'a FixedBitSet<K>
+impl<'a, K> BitXor for &'a TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
-    type Output = FixedBitSet<K>;
-    fn bitxor(self, other: &FixedBitSet<K>) -> FixedBitSet<K> {
+    type Output = TiBitSet<K>;
+    fn bitxor(self, other: &TiBitSet<K>) -> TiBitSet<K> {
         let (short, long) = {
             if self.length <= other.length {
                 (&self.data, &other.data)
@@ -851,7 +848,7 @@ where
             *data ^= *block;
         }
         let len = std::cmp::max(self.length, other.length);
-        FixedBitSet {
+        TiBitSet {
             data,
             length: len,
             kind: PhantomData,
@@ -859,7 +856,7 @@ where
     }
 }
 
-impl<'a, K> BitXorAssign for FixedBitSet<K>
+impl<'a, K> BitXorAssign for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -868,7 +865,7 @@ where
     }
 }
 
-impl<'a, K> BitXorAssign<&Self> for FixedBitSet<K>
+impl<'a, K> BitXorAssign<&Self> for TiBitSet<K>
 where
     K: From<usize> + Into<usize>,
 {
@@ -880,7 +877,7 @@ where
 #[test]
 fn it_works() {
     const N: usize = 50;
-    let mut fb = FixedBitSet::with_capacity(N);
+    let mut fb = TiBitSet::with_capacity(N);
 
     for i in 0..(N + 10) {
         assert_eq!(fb.contains(i), false);
@@ -906,7 +903,7 @@ fn it_works() {
 
 #[test]
 fn with_blocks() {
-    let fb = FixedBitSet::with_capacity_and_blocks(50, vec![8u32, 0u32]);
+    let fb = TiBitSet::with_capacity_and_blocks(50, vec![8u32, 0u32]);
     assert!(fb.contains(3));
 
     let ones: Vec<_> = fb.ones().collect();
@@ -915,14 +912,14 @@ fn with_blocks() {
 
 #[test]
 fn with_blocks_too_small() {
-    let mut fb = FixedBitSet::with_capacity_and_blocks(500, vec![8u32, 0u32]);
+    let mut fb = TiBitSet::with_capacity_and_blocks(500, vec![8u32, 0u32]);
     fb.insert(400);
     assert!(fb.contains(400));
 }
 
 #[test]
 fn with_blocks_too_big() {
-    let fb = FixedBitSet::with_capacity_and_blocks(1, vec![8u32]);
+    let fb = TiBitSet::with_capacity_and_blocks(1, vec![8u32]);
 
     // since capacity is 1, 3 shouldn't be set here
     assert!(!fb.contains(3));
@@ -930,7 +927,7 @@ fn with_blocks_too_big() {
 
 #[test]
 fn with_blocks_too_big_range_check() {
-    let fb = FixedBitSet::with_capacity_and_blocks(1, vec![0xff]);
+    let fb = TiBitSet::with_capacity_and_blocks(1, vec![0xff]);
 
     // since capacity is 1, only 0 should be set
     assert!(fb.contains(0));
@@ -941,7 +938,7 @@ fn with_blocks_too_big_range_check() {
 
 #[test]
 fn grow() {
-    let mut fb = FixedBitSet::with_capacity(48);
+    let mut fb = TiBitSet::with_capacity(48);
     for i in 0..fb.len() {
         fb.set(i, true);
     }
@@ -957,7 +954,7 @@ fn grow() {
 
 #[test]
 fn test_toggle() {
-    let mut fb = FixedBitSet::with_capacity(16);
+    let mut fb = TiBitSet::with_capacity(16);
     fb.toggle(1);
     fb.put(2);
     fb.toggle(2);
@@ -969,7 +966,7 @@ fn test_toggle() {
 
 #[test]
 fn copy_bit() {
-    let mut fb = FixedBitSet::with_capacity(48);
+    let mut fb = TiBitSet::with_capacity(48);
     for i in 0..fb.len() {
         fb.set(i, true);
     }
@@ -986,7 +983,7 @@ fn copy_bit() {
 
 #[test]
 fn count_ones() {
-    let mut fb = FixedBitSet::with_capacity(100);
+    let mut fb = TiBitSet::with_capacity(100);
     fb.set(11, true);
     fb.set(12, true);
     fb.set(7, true);
@@ -1019,7 +1016,7 @@ fn count_ones() {
 
 #[test]
 fn ones() {
-    let mut fb = FixedBitSet::with_capacity(100);
+    let mut fb = TiBitSet::with_capacity(100);
     fb.set(11, true);
     fb.set(12, true);
     fb.set(7, true);
@@ -1039,7 +1036,7 @@ fn ones() {
 fn iter_ones_range() {
     fn test_range(from: usize, to: usize, capa: usize) {
         assert!(to <= capa);
-        let mut fb = FixedBitSet::with_capacity(capa);
+        let mut fb = TiBitSet::with_capacity(capa);
         for i in from..to {
             fb.insert(i);
         }
@@ -1057,21 +1054,21 @@ fn iter_ones_range() {
 #[should_panic]
 #[test]
 fn count_ones_oob() {
-    let fb = FixedBitSet::<usize>::with_capacity(100);
+    let fb = TiBitSet::<usize>::with_capacity(100);
     fb.count_ones(90..101);
 }
 
 #[should_panic]
 #[test]
 fn count_ones_negative_range() {
-    let fb = FixedBitSet::<usize>::with_capacity(100);
+    let fb = TiBitSet::<usize>::with_capacity(100);
     fb.count_ones(90..80);
 }
 
 #[test]
 fn count_ones_panic() {
     for i in 1..128 {
-        let fb = FixedBitSet::<usize>::with_capacity(i);
+        let fb = TiBitSet::<usize>::with_capacity(i);
         for j in 0..fb.len() + 1 {
             for k in j..fb.len() + 1 {
                 assert_eq!(fb.count_ones(j..k), 0);
@@ -1082,13 +1079,13 @@ fn count_ones_panic() {
 
 #[test]
 fn default() {
-    let fb = FixedBitSet::<usize>::default();
+    let fb = TiBitSet::<usize>::default();
     assert_eq!(fb.len(), 0);
 }
 
 #[test]
 fn insert_range() {
-    let mut fb = FixedBitSet::with_capacity(97);
+    let mut fb = TiBitSet::with_capacity(97);
     fb.insert_range(..3);
     fb.insert_range(9..32);
     fb.insert_range(37..81);
@@ -1106,7 +1103,7 @@ fn insert_range() {
 
 #[test]
 fn set_range() {
-    let mut fb = FixedBitSet::with_capacity(48);
+    let mut fb = TiBitSet::with_capacity(48);
     fb.insert_range(..);
 
     fb.set_range(..32, false);
@@ -1123,7 +1120,7 @@ fn set_range() {
 
 #[test]
 fn toggle_range() {
-    let mut fb = FixedBitSet::with_capacity(40);
+    let mut fb = TiBitSet::with_capacity(40);
     fb.insert_range(..10);
     fb.insert_range(34..38);
 
@@ -1145,8 +1142,8 @@ fn bitand_equal_lengths() {
     let len = 109;
     let a_end = 59;
     let b_start = 23;
-    let mut a = FixedBitSet::with_capacity(len);
-    let mut b = FixedBitSet::with_capacity(len);
+    let mut a = TiBitSet::with_capacity(len);
+    let mut b = TiBitSet::with_capacity(len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a & &b;
@@ -1169,8 +1166,8 @@ fn bitand_first_smaller() {
     let len = std::cmp::min(a_len, b_len);
     let a_end = 97;
     let b_start = 89;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a & &b;
@@ -1193,8 +1190,8 @@ fn bitand_first_larger() {
     let len = std::cmp::min(a_len, b_len);
     let a_end = 107;
     let b_start = 43;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a & &b;
@@ -1215,12 +1212,12 @@ fn intersection() {
     let len = 109;
     let a_end = 59;
     let b_start = 23;
-    let mut a = FixedBitSet::with_capacity(len);
-    let mut b = FixedBitSet::with_capacity(len);
+    let mut a = TiBitSet::with_capacity(len);
+    let mut b = TiBitSet::with_capacity(len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
 
-    let mut ab = a.intersection(&b).collect::<FixedBitSet>();
+    let mut ab = a.intersection(&b).collect::<TiBitSet>();
 
     for i in 0..b_start {
         assert!(!ab.contains(i));
@@ -1247,11 +1244,11 @@ fn union() {
     let b_len = 137;
     let a_start = 139;
     let b_end = 107;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(a_start.., true);
     b.set_range(..b_end, true);
-    let ab = a.union(&b).collect::<FixedBitSet>();
+    let ab = a.union(&b).collect::<TiBitSet>();
     for i in a_start..a_len {
         assert!(ab.contains(i));
     }
@@ -1273,11 +1270,11 @@ fn difference() {
     let a_start = 0;
     let a_end = 79;
     let b_start = 53;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(a_start..a_end, true);
     b.set_range(b_start..b_len, true);
-    let mut a_diff_b = a.difference(&b).collect::<FixedBitSet>();
+    let mut a_diff_b = a.difference(&b).collect::<TiBitSet>();
     for i in a_start..b_start {
         assert!(a_diff_b.contains(i));
     }
@@ -1301,11 +1298,11 @@ fn symmetric_difference() {
     let a_start = 47;
     let a_end = 79;
     let b_start = 53;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(a_start..a_end, true);
     b.set_range(b_start..b_len, true);
-    let a_sym_diff_b = a.symmetric_difference(&b).collect::<FixedBitSet>();
+    let a_sym_diff_b = a.symmetric_difference(&b).collect::<TiBitSet>();
     for i in 0..a_start {
         assert!(!a_sym_diff_b.contains(i));
     }
@@ -1333,8 +1330,8 @@ fn bitor_equal_lengths() {
     let a_end = 23;
     let b_start = 19;
     let b_end = 59;
-    let mut a = FixedBitSet::with_capacity(len);
-    let mut b = FixedBitSet::with_capacity(len);
+    let mut a = TiBitSet::with_capacity(len);
+    let mut b = TiBitSet::with_capacity(len);
     a.set_range(a_start..a_end, true);
     b.set_range(b_start..b_end, true);
     let ab = &a | &b;
@@ -1356,8 +1353,8 @@ fn bitor_first_smaller() {
     let b_len = 137;
     let a_end = 89;
     let b_start = 97;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a | &b;
@@ -1379,8 +1376,8 @@ fn bitor_first_larger() {
     let b_len = 137;
     let a_start = 139;
     let b_end = 107;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(a_start.., true);
     b.set_range(..b_end, true);
     let ab = &a | &b;
@@ -1401,8 +1398,8 @@ fn bitxor_equal_lengths() {
     let len = 109;
     let a_end = 59;
     let b_start = 23;
-    let mut a = FixedBitSet::with_capacity(len);
-    let mut b = FixedBitSet::with_capacity(len);
+    let mut a = TiBitSet::with_capacity(len);
+    let mut b = TiBitSet::with_capacity(len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a ^ &b;
@@ -1425,8 +1422,8 @@ fn bitxor_first_smaller() {
     let len = std::cmp::max(a_len, b_len);
     let a_end = 97;
     let b_start = 89;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a ^ &b;
@@ -1449,8 +1446,8 @@ fn bitxor_first_larger() {
     let len = std::cmp::max(a_len, b_len);
     let a_end = 107;
     let b_start = 43;
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.set_range(..a_end, true);
     b.set_range(b_start.., true);
     let ab = &a ^ &b;
@@ -1474,8 +1471,8 @@ fn bitand_assign_shorter() {
     let a_ones: Vec<usize> = vec![2, 3, 7, 19, 31, 32, 37, 41, 43, 47, 71, 73, 101];
     let b_ones: Vec<usize> = vec![2, 7, 8, 11, 23, 31, 32];
     let a_and_b: Vec<usize> = vec![2, 7, 31, 32];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     a &= b;
     let res = a.ones().collect::<Vec<usize>>();
 
@@ -1487,8 +1484,8 @@ fn bitand_assign_longer() {
     let a_ones: Vec<usize> = vec![2, 7, 8, 11, 23, 31, 32];
     let b_ones: Vec<usize> = vec![2, 3, 7, 19, 31, 32, 37, 41, 43, 47, 71, 73, 101];
     let a_and_b: Vec<usize> = vec![2, 7, 31, 32];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     a &= b;
     let res = a.ones().collect::<Vec<usize>>();
     assert!(res == a_and_b);
@@ -1499,8 +1496,8 @@ fn bitor_assign_shorter() {
     let a_ones: Vec<usize> = vec![2, 3, 7, 19, 31, 32, 37, 41, 43, 47, 71, 73, 101];
     let b_ones: Vec<usize> = vec![2, 7, 8, 11, 23, 31, 32];
     let a_or_b: Vec<usize> = vec![2, 3, 7, 8, 11, 19, 23, 31, 32, 37, 41, 43, 47, 71, 73, 101];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     a |= b;
     let res = a.ones().collect::<Vec<usize>>();
     assert!(res == a_or_b);
@@ -1511,8 +1508,8 @@ fn bitor_assign_longer() {
     let a_ones: Vec<usize> = vec![2, 7, 8, 11, 23, 31, 32];
     let b_ones: Vec<usize> = vec![2, 3, 7, 19, 31, 32, 37, 41, 43, 47, 71, 73, 101];
     let a_or_b: Vec<usize> = vec![2, 3, 7, 8, 11, 19, 23, 31, 32, 37, 41, 43, 47, 71, 73, 101];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     a |= b;
     let res = a.ones().collect::<Vec<usize>>();
     assert!(res == a_or_b);
@@ -1523,8 +1520,8 @@ fn bitxor_assign_shorter() {
     let a_ones: Vec<usize> = vec![2, 3, 7, 19, 31, 32, 37, 41, 43, 47, 71, 73, 101];
     let b_ones: Vec<usize> = vec![2, 7, 8, 11, 23, 31, 32];
     let a_xor_b: Vec<usize> = vec![3, 8, 11, 19, 23, 37, 41, 43, 47, 71, 73, 101];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     a ^= b;
     let res = a.ones().collect::<Vec<usize>>();
     assert!(res == a_xor_b);
@@ -1535,8 +1532,8 @@ fn bitxor_assign_longer() {
     let a_ones: Vec<usize> = vec![2, 7, 8, 11, 23, 31, 32];
     let b_ones: Vec<usize> = vec![2, 3, 7, 19, 31, 32, 37, 41, 43, 47, 71, 73, 101];
     let a_xor_b: Vec<usize> = vec![3, 8, 11, 19, 23, 37, 41, 43, 47, 71, 73, 101];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     a ^= b;
     let res = a.ones().collect::<Vec<usize>>();
     assert!(res == a_xor_b);
@@ -1544,8 +1541,8 @@ fn bitxor_assign_longer() {
 
 #[test]
 fn op_assign_ref() {
-    let mut a = FixedBitSet::<usize>::with_capacity(8);
-    let b = FixedBitSet::with_capacity(8);
+    let mut a = TiBitSet::<usize>::with_capacity(8);
+    let b = TiBitSet::with_capacity(8);
 
     //check that all assign type operators work on references
     a &= &b;
@@ -1557,8 +1554,8 @@ fn op_assign_ref() {
 fn subset_superset_shorter() {
     let a_ones: Vec<usize> = vec![7, 31, 32, 63];
     let b_ones: Vec<usize> = vec![2, 7, 19, 31, 32, 37, 41, 43, 47, 63, 73, 101];
-    let mut a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let mut a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let b = b_ones.iter().cloned().collect::<TiBitSet>();
     assert!(a.is_subset(&b) && b.is_superset(&a));
     a.insert(14);
     assert!(!a.is_subset(&b) && !b.is_superset(&a));
@@ -1570,8 +1567,8 @@ fn subset_superset_longer() {
     let b_len = 75;
     let a_ones: Vec<usize> = vec![7, 31, 32, 63];
     let b_ones: Vec<usize> = vec![2, 7, 19, 31, 32, 37, 41, 43, 47, 63, 73];
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.extend(a_ones.iter().cloned());
     b.extend(b_ones.iter().cloned());
     assert!(a.is_subset(&b) && b.is_superset(&a));
@@ -1585,8 +1582,8 @@ fn is_disjoint_first_shorter() {
     let b_len = 153;
     let a_ones: Vec<usize> = vec![2, 19, 32, 37, 41, 43, 47, 73];
     let b_ones: Vec<usize> = vec![7, 23, 31, 63, 124];
-    let mut a = FixedBitSet::with_capacity(a_len);
-    let mut b = FixedBitSet::with_capacity(b_len);
+    let mut a = TiBitSet::with_capacity(a_len);
+    let mut b = TiBitSet::with_capacity(b_len);
     a.extend(a_ones.iter().cloned());
     b.extend(b_ones.iter().cloned());
     assert!(a.is_disjoint(&b));
@@ -1598,8 +1595,8 @@ fn is_disjoint_first_shorter() {
 fn is_disjoint_first_longer() {
     let a_ones: Vec<usize> = vec![2, 19, 32, 37, 41, 43, 47, 73, 101];
     let b_ones: Vec<usize> = vec![7, 23, 31, 63];
-    let a = a_ones.iter().cloned().collect::<FixedBitSet>();
-    let mut b = b_ones.iter().cloned().collect::<FixedBitSet>();
+    let a = a_ones.iter().cloned().collect::<TiBitSet>();
+    let mut b = b_ones.iter().cloned().collect::<TiBitSet>();
     assert!(a.is_disjoint(&b));
     b.insert(2);
     assert!(!a.is_disjoint(&b));
@@ -1608,7 +1605,7 @@ fn is_disjoint_first_longer() {
 #[test]
 fn extend_on_empty() {
     let items: Vec<usize> = vec![2, 3, 5, 7, 11, 13, 17, 19, 23, 27, 29, 31, 37, 167];
-    let mut fbs = FixedBitSet::with_capacity(0);
+    let mut fbs = TiBitSet::with_capacity(0);
     fbs.extend(items.iter().cloned());
     let ones = fbs.ones().collect::<Vec<usize>>();
     assert!(ones == items);
@@ -1617,7 +1614,7 @@ fn extend_on_empty() {
 #[test]
 fn extend() {
     let items: Vec<usize> = vec![2, 3, 5, 7, 11, 13, 17, 19, 23, 27, 29, 31, 37, 167];
-    let mut fbs = FixedBitSet::with_capacity(168);
+    let mut fbs = TiBitSet::with_capacity(168);
     let new: Vec<usize> = vec![7, 37, 67, 137];
     for i in &new {
         fbs.put(*i);
@@ -1640,7 +1637,7 @@ fn extend() {
 #[test]
 fn from_iterator() {
     let items: Vec<usize> = vec![0, 2, 4, 6, 8];
-    let fb = items.iter().cloned().collect::<FixedBitSet>();
+    let fb = items.iter().cloned().collect::<TiBitSet>();
     for i in items {
         assert!(fb.contains(i));
     }
@@ -1653,12 +1650,12 @@ fn from_iterator() {
 #[test]
 fn from_iterator_ones() {
     let len = 257;
-    let mut fb = FixedBitSet::with_capacity(len);
+    let mut fb = TiBitSet::with_capacity(len);
     for i in (0..len).filter(|i| i % 7 == 0) {
         fb.put(i);
     }
     fb.put(len - 1);
-    let dup = fb.ones().collect::<FixedBitSet>();
+    let dup = fb.ones().collect::<TiBitSet>();
 
     assert_eq!(fb.len(), dup.len());
     assert_eq!(
@@ -1683,7 +1680,7 @@ fn other_types() {
         }
     }
 
-    let mut fb = FixedBitSet::<CustomIndex>::with_capacity(40);
+    let mut fb = TiBitSet::<CustomIndex>::with_capacity(40);
     fb.insert_range(..10);
     fb.insert_range(34..38);
 
@@ -1704,7 +1701,7 @@ fn other_types() {
 #[test]
 fn binary_trait() {
     let items: Vec<usize> = vec![1, 5, 7, 10, 14, 15];
-    let fb = items.iter().cloned().collect::<FixedBitSet>();
+    let fb = items.iter().cloned().collect::<TiBitSet>();
 
     assert_eq!(format!("{:b}", fb), "0100010100100011");
     assert_eq!(format!("{:#b}", fb), "0b0100010100100011");
@@ -1714,7 +1711,7 @@ fn binary_trait() {
 #[test]
 fn display_trait() {
     let len = 8;
-    let mut fb = FixedBitSet::with_capacity(len);
+    let mut fb = TiBitSet::with_capacity(len);
 
     fb.put(4);
     fb.put(2);
@@ -1726,7 +1723,7 @@ fn display_trait() {
 #[test]
 #[cfg(feature = "serde")]
 fn test_serialize() {
-    let mut fb = FixedBitSet::with_capacity(10);
+    let mut fb = TiBitSet::with_capacity(10);
     fb.put(2);
     fb.put(3);
     fb.put(6);

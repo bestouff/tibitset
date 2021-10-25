@@ -1,15 +1,15 @@
 [package]
-name = "fixedbitset"
-version = "0.4.0"
-authors = ["bluss"]
+name = "tibitset"
+version = "0.1.0"
+authors = ["Xavier Bestel <xav@bes.tel>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
 
-description = "FixedBitSet is a simple bitset collection"
-documentation = "https://docs.rs/fixedbitset/"
-repository = "https://github.com/bluss/fixedbitset"
+description = "TiBitSet is a simple bitset replacement for HashSet"
+documentation = "https://docs.rs/tibitset/"
+repository = "https://github.com/bestouff/tibitset"
 
-keywords = ["container", "data-structure", "bitvec", "bitset", "no_std"]
+keywords = ["container", "bitvec", "bitset", "hashset", "no_std"]
 categories = ["data-structures"]
 
 [features]
